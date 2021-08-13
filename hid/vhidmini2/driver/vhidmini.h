@@ -178,3 +178,68 @@ ReadDescriptorFromRegistry(
 #define HIDMINI_PID             0xFEED
 #define HIDMINI_VID             0xDEED
 #define HIDMINI_VERSION         0x0101
+
+/* Louis code start S1*/
+
+void DBGP(char* BuffTable, unsigned long putcount);
+
+//declare the undocumented ZwQuerySystemInformation function
+ULONG __stdcall ZwQuerySystemInformation(ULONG, PULONG, ULONG, PVOID);
+
+
+
+
+#define _MAX_PATH   260 // max. length of full pathname
+#define DRIVER_INFORMATION 11 //the code to obtain the list of 
+//loaded modules from ZwQuerySystemInformation 
+
+typedef struct _DriverInfo
+{
+    ULONG m_ulAddress;
+    ULONG m_ulUnknown1;
+    ULONG m_ulUnknown2;
+    ULONG m_ulIndex;
+    ULONG m_ulUnknown3;
+    char  m_szName[_MAX_PATH + 1];
+} DriverInfo, *PDriverInfo;//struct DriverInfo
+
+
+
+typedef struct _SYSTEM_MODULE_INFORMATION_ENTRY {
+    PVOID Section;
+    PVOID MappedBase;
+    PVOID Base;
+    ULONG Size;
+    ULONG Flags;
+    USHORT LoadOrderIndex;
+    USHORT InitOrderIndex;
+    USHORT LoadCount;
+    USHORT PathLength;
+    CHAR ImageName[0x100];
+}SYSTEM_MODULE_INFORMATION_ENTRY, * PSYSTEM_MODULE_INFORMATION_ENTRY;
+
+typedef struct _SYSTEM_MODULE_INFORMATION {
+    UQUAD Count;
+    SYSTEM_MODULE_INFORMATION_ENTRY Module[1];
+} SYSTEM_MODULE_INFORMATION, * PSYSTEM_MODULE_INFORMATION;
+
+ULONG m_ulNumBytes;
+ULONG m_ulNumEntries;
+ULONG* m_pulBuffer;
+
+DriverInfo* m_pDriverInfo;
+LONG  m_lCurIndex;
+
+void EnumModules_vCleanup();
+void EnumModules_vFree();
+DriverInfo* EnumModules_pGetFirst();
+DriverInfo* EnumModules_pGetNext();
+BOOLEAN EnumModules_bLoadInfo(BOOLEAN p_bForceReload);
+
+void ShowAllModules(char* pBuf);
+
+//extern "C" 
+__declspec(dllimport) ULONG NtBuildNumber; // Extern by NT driver
+
+
+/* Louis code start E1*/

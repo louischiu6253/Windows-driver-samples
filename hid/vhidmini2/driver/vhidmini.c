@@ -62,6 +62,8 @@ HID_DESCRIPTOR              G_DefaultHidDescriptor = {
     }
 };
 
+
+
 NTSTATUS
 DriverEntry(
     _In_  PDRIVER_OBJECT    DriverObject,
@@ -99,7 +101,7 @@ Return Value:
     WDF_DRIVER_CONFIG       config;
     NTSTATUS                status;
 
-    KdPrint(("DriverEntry for VHidMini\n"));
+    KdPrint(("Vhid-DriverEntry for VHidMini\n"));
 
 #ifdef _KERNEL_MODE
     //
@@ -117,7 +119,7 @@ Return Value:
                             &config,
                             WDF_NO_HANDLE);
     if (!NT_SUCCESS(status)) {
-        KdPrint(("Error: WdfDriverCreate failed 0x%x\n", status));
+        KdPrint(("Vhid-Error: WdfDriverCreate failed 0x%x\n", status));
         return status;
     }
 
@@ -155,7 +157,7 @@ Return Value:
     PHID_DEVICE_ATTRIBUTES  hidAttributes;
     UNREFERENCED_PARAMETER  (Driver);
 
-    KdPrint(("Enter EvtDeviceAdd\n"));
+    KdPrint(("Vhid-Enter EvtDeviceAdd\n"));
 
     //
     // Mark ourselves as a filter, which also relinquishes power policy ownership
@@ -170,7 +172,7 @@ Return Value:
                             &deviceAttributes,
                             &device);
     if (!NT_SUCCESS(status)) {
-        KdPrint(("Error: WdfDeviceCreate failed 0x%x\n", status));
+        KdPrint(("Vhid-Error: WdfDeviceCreate failed 0x%x\n", status));
         return status;
     }
 
@@ -196,7 +198,6 @@ Return Value:
     if( !NT_SUCCESS(status) ) {
         return status;
     }
-
     //
     // Use default "HID Descriptor" (hardcoded). We will set the
     // wReportLength memeber of HID descriptor when we read the
@@ -220,7 +221,7 @@ Return Value:
         //
         status = ReadDescriptorFromRegistry(device);
         if (!NT_SUCCESS(status)){
-            KdPrint(("Failed to read descriptor from registry\n"));
+            KdPrint(("Vhid-Failed to read descriptor from registry\n"));
         }
     }
 
@@ -229,9 +230,33 @@ Return Value:
     //
     if (!NT_SUCCESS(status)){
         deviceContext->ReportDescriptor = G_DefaultReportDescriptor;
-        KdPrint(("Using Hard-coded Report descriptor\n"));
+        KdPrint(("Vhid-Using Hard-coded Report descriptor\n"));
         status = STATUS_SUCCESS;
     }
+
+    EnumModules_vFree();
+    DriverInfo* l_pDriverInfo = EnumModules_pGetFirst();
+    /*
+    while (l_pDriverInfo)
+    {
+        DbgPrint("Driver Enum: %x %s \n",
+            l_pDriverInfo->m_ulAddress,
+            l_pDriverInfo->m_szName);
+        l_pDriverInfo = EnumModules_pGetNext();
+    }//while(l_pDriverInfo)
+    */
+    EnumModules_vFree();
+/**
+    while (l_pDriverInfo)
+    {
+        DbgPrint("%x %s",
+            l_pDriverInfo->m_ulAddress,
+            l_pDriverInfo->m_szName);
+        EnumModules_vFree();
+        l_pDriverInfo = EnumModules_pGetNext();
+    }//while(l_pDriverInfo)
+*/
+
 
     return status;
 }
@@ -297,7 +322,7 @@ Return Value:
                             &queue);
 
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfIoQueueCreate failed 0x%x\n",status));
+        KdPrint(("Vhid-WdfIoQueueCreate failed 0x%x\n",status));
         return status;
     }
 
@@ -540,14 +565,14 @@ Return Value:
 
     status = WdfRequestRetrieveOutputMemory(Request, &memory);
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfRequestRetrieveOutputMemory failed 0x%x\n",status));
+        KdPrint(("Vhid-WdfRequestRetrieveOutputMemory failed 0x%x\n",status));
         return status;
     }
 
     WdfMemoryGetBuffer(memory, &outputBufferLength);
     if (outputBufferLength < NumBytesToCopyFrom) {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("RequestCopyFromBuffer: buffer too small. Size %d, expect %d\n",
+        KdPrint(("Vhid-RequestCopyFromBuffer: buffer too small. Size %d, expect %d\n",
                 (int)outputBufferLength, (int)NumBytesToCopyFrom));
         return status;
     }
@@ -557,7 +582,7 @@ Return Value:
                                     SourceBuffer,
                                     NumBytesToCopyFrom);
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfMemoryCopyFromBuffer failed 0x%x\n",status));
+        KdPrint(("Vhid-WdfMemoryCopyFromBuffer failed 0x%x\n",status));
         return status;
     }
 
@@ -600,7 +625,11 @@ Return Value:
 {
     NTSTATUS                status;
 
-    KdPrint(("ReadReport\n"));
+    
+
+//    KdPrint(("Vhid-ReadReport\n"));
+
+//    DBGP((char*)&QueueContext->OutputReport, (unsigned long)sizeof(QueueContext->OutputReport));
 
     //
     // forward the request to manual queue
@@ -609,7 +638,7 @@ Return Value:
                             Request,
                             QueueContext->DeviceContext->ManualQueue);
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfRequestForwardToIoQueue failed with 0x%x\n", status));
+        KdPrint(("Vhid-WdfRequestForwardToIoQueue failed with 0x%x\n", status));
         *CompleteRequest = TRUE;
     }
     else {
@@ -648,7 +677,10 @@ Return Value:
     ULONG                   reportSize;
     PHIDMINI_OUTPUT_REPORT  outputReport;
 
-    KdPrint(("WriteReport\n"));
+//    KdPrint(("Vhid-WriteReport\n"));
+
+//    DBGP((char*)&QueueContext->OutputReport, (unsigned long)sizeof(QueueContext->OutputReport));
+
 
     status = RequestGetHidXferPacket_ToWriteToDevice(
                             Request,
@@ -662,7 +694,7 @@ Return Value:
         // Return error for unknown collection
         //
         status = STATUS_INVALID_PARAMETER;
-        KdPrint(("WriteReport: unkown report id %d\n", packet.reportId));
+        KdPrint(("Vhid-WriteReport: unkown report id %d\n", packet.reportId));
         return status;
     }
 
@@ -673,7 +705,7 @@ Return Value:
 
     if (packet.reportBufferLen < reportSize) {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("WriteReport: invalid input buffer. size %d, expect %d\n",
+        KdPrint(("Vhid-WriteReport: invalid input buffer. size %d, expect %d\n",
                             packet.reportBufferLen, reportSize));
         return status;
     }
@@ -722,7 +754,7 @@ Return Value:
     PMY_DEVICE_ATTRIBUTES   myAttributes;
     PHID_DEVICE_ATTRIBUTES  hidAttributes = &QueueContext->DeviceContext->HidDeviceAttributes;
 
-    KdPrint(("GetFeature\n"));
+    KdPrint(("Vhid-GetFeature\n"));
 
     status = RequestGetHidXferPacket_ToReadFromDevice(
                             Request,
@@ -737,7 +769,7 @@ Return Value:
         // this request just as you would for a regular collection.
         //
         status = STATUS_INVALID_PARAMETER;
-        KdPrint(("GetFeature: invalid report id %d\n", packet.reportId));
+        KdPrint(("Vhid-GetFeature: invalid report id %d\n", packet.reportId));
         return status;
     }
 
@@ -756,7 +788,7 @@ Return Value:
     reportSize = sizeof(MY_DEVICE_ATTRIBUTES) + sizeof(packet.reportId);
     if (packet.reportBufferLen < reportSize) {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("GetFeature: output buffer too small. Size %d, expect %d\n",
+        KdPrint(("Vhid-GetFeature: output buffer too small. Size %d, expect %d\n",
                             packet.reportBufferLen, reportSize));
         return status;
     }
@@ -812,7 +844,7 @@ Return Value:
     PHIDMINI_CONTROL_INFO   controlInfo;
     PHID_DEVICE_ATTRIBUTES  hidAttributes = &QueueContext->DeviceContext->HidDeviceAttributes;
 
-    KdPrint(("SetFeature\n"));
+    KdPrint(("Vhid-SetFeature\n"));
 
     status = RequestGetHidXferPacket_ToWriteToDevice(
                             Request,
@@ -827,7 +859,7 @@ Return Value:
         // this request just as you would for a regular collection.
         //
         status = STATUS_INVALID_PARAMETER;
-        KdPrint(("SetFeature: invalid report id %d\n", packet.reportId));
+        KdPrint(("Vhid-SetFeature: invalid report id %d\n", packet.reportId));
         return status;
     }
 
@@ -838,7 +870,7 @@ Return Value:
 
     if (packet.reportBufferLen < reportSize) {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("SetFeature: invalid input buffer. size %d, expect %d\n",
+        KdPrint(("Vhid-SetFeature: invalid input buffer. size %d, expect %d\n",
                             packet.reportBufferLen, reportSize));
         return status;
     }
@@ -863,17 +895,17 @@ Return Value:
 
     case HIDMINI_CONTROL_CODE_DUMMY1:
         status = STATUS_NOT_IMPLEMENTED;
-        KdPrint(("SetFeature: HIDMINI_CONTROL_CODE_DUMMY1\n"));
+        KdPrint(("Vhid-SetFeature: HIDMINI_CONTROL_CODE_DUMMY1\n"));
         break;
 
     case HIDMINI_CONTROL_CODE_DUMMY2:
         status = STATUS_NOT_IMPLEMENTED;
-        KdPrint(("SetFeature: HIDMINI_CONTROL_CODE_DUMMY2\n"));
+        KdPrint(("Vhid-SetFeature: HIDMINI_CONTROL_CODE_DUMMY2\n"));
         break;
 
     default:
         status = STATUS_NOT_IMPLEMENTED;
-        KdPrint(("SetFeature: Unknown control Code 0x%x\n",
+        KdPrint(("Vhid-SetFeature: Unknown control Code 0x%x\n",
                             controlInfo->ControlCode));
         break;
     }
@@ -909,7 +941,7 @@ Return Value:
     ULONG                   reportSize;
     PHIDMINI_INPUT_REPORT   reportBuffer;
 
-    KdPrint(("GetInputReport\n"));
+    KdPrint(("Vhid-GetInputReport\n"));
 
     status = RequestGetHidXferPacket_ToReadFromDevice(
                             Request,
@@ -924,14 +956,14 @@ Return Value:
         // this request just as you would for a regular collection.
         //
         status = STATUS_INVALID_PARAMETER;
-        KdPrint(("GetInputReport: invalid report id %d\n", packet.reportId));
+        KdPrint(("Vhid-GetInputReport: invalid report id %d\n", packet.reportId));
         return status;
     }
 
     reportSize = sizeof(HIDMINI_INPUT_REPORT);
     if (packet.reportBufferLen < reportSize) {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("GetInputReport: output buffer too small. Size %d, expect %d\n",
+        KdPrint(("Vhid-GetInputReport: output buffer too small. Size %d, expect %d\n",
                             packet.reportBufferLen, reportSize));
         return status;
     }
@@ -977,7 +1009,7 @@ Return Value:
     ULONG                   reportSize;
     PHIDMINI_OUTPUT_REPORT  reportBuffer;
 
-    KdPrint(("SetOutputReport\n"));
+    KdPrint(("Vhid-SetOutputReport\n"));
 
     status = RequestGetHidXferPacket_ToWriteToDevice(
                             Request,
@@ -992,7 +1024,7 @@ Return Value:
         // this request just as you would for a regular collection.
         //
         status = STATUS_INVALID_PARAMETER;
-        KdPrint(("SetOutputReport: unkown report id %d\n", packet.reportId));
+        KdPrint(("Vhid-SetOutputReport: unkown report id %d\n", packet.reportId));
         return status;
     }
 
@@ -1003,7 +1035,7 @@ Return Value:
 
     if (packet.reportBufferLen < reportSize) {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("SetOutputReport: invalid input buffer. size %d, expect %d\n",
+        KdPrint(("Vhid-SetOutputReport: invalid input buffer. size %d, expect %d\n",
                             packet.reportBufferLen, reportSize));
         return status;
     }
@@ -1089,7 +1121,7 @@ Return Value:
 
     status = WdfRequestRetrieveInputMemory(Request, &inputMemory);
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfRequestRetrieveInputMemory failed 0x%x\n",status));
+        KdPrint(("Vhid-WdfRequestRetrieveInputMemory failed 0x%x\n",status));
         return status;
     }
     inputBuffer = WdfMemoryGetBuffer(inputMemory, &inputBufferLength);
@@ -1100,7 +1132,7 @@ Return Value:
     if (inputBufferLength < sizeof(ULONG))
     {
         status = STATUS_INVALID_BUFFER_SIZE;
-        KdPrint(("GetStringId: invalid input buffer. size %d, expect %d\n",
+        KdPrint(("Vhid-GetStringId: invalid input buffer. size %d, expect %d\n",
                             (int)inputBufferLength, (int)sizeof(ULONG)));
         return status;
     }
@@ -1158,7 +1190,7 @@ Return Value:
         if (stringIndex != VHIDMINI_DEVICE_STRING_INDEX)
         {
             status = STATUS_INVALID_PARAMETER;
-            KdPrint(("GetString: unkown string index %d\n", stringIndex));
+            KdPrint(("Vhid-GetString: unkown string index %d\n", stringIndex));
             return status;
         }
 
@@ -1218,7 +1250,7 @@ Return Value:
         break;
     default:
         status = STATUS_INVALID_PARAMETER;
-        KdPrint(("GetString: unkown string id %d\n", stringId));
+        KdPrint(("Vhid-GetString: unkown string id %d\n", stringId));
         return status;
     }
 
@@ -1296,7 +1328,7 @@ Return Value:
                             &queue);
 
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfIoQueueCreate failed 0x%x\n",status));
+        KdPrint(("Vhid-WdfIoQueueCreate failed 0x%x\n",status));
         return status;
     }
 
@@ -1316,7 +1348,7 @@ Return Value:
                             &queueContext->Timer);
 
     if( !NT_SUCCESS(status) ) {
-        KdPrint(("WdfTimerCreate failed 0x%x\n",status));
+        KdPrint(("Vhid-WdfTimerCreate failed 0x%x\n",status));
         return status;
     }
 
@@ -1353,7 +1385,7 @@ Return Value:
     WDFREQUEST              request;
     HIDMINI_INPUT_REPORT    readReport;
 
-    KdPrint(("EvtTimerFunc\n"));
+//    KdPrint(("Vhid-EvtTimerFunc\n"));
 
     queue = (WDFQUEUE)WdfTimerGetParentObject(Timer);
     queueContext = GetManualQueueContext(queue);
@@ -1484,7 +1516,7 @@ Return Value:
 
             reportDescriptor = WdfMemoryGetBuffer(memory, &bufferSize);
 
-            KdPrint(("No. of report descriptor bytes copied: %d\n", (INT) bufferSize));
+            KdPrint(("Vhid-No. of report descriptor bytes copied: %d\n", (INT) bufferSize));
 
             //
             // Store the registry report descriptor in the device extension
@@ -1500,3 +1532,259 @@ Return Value:
     return status;
 }
 
+#define DbgPrint KdPrint()
+
+void DBGP(char* BuffTable, unsigned long putcount)
+{
+    unsigned long PrintCount;
+    DbgPrint("<<Start Of Data Dump Buffer Length:[0x%X] Bytes>> \n", putcount - 1);
+
+    for (PrintCount = 0; PrintCount < putcount; PrintCount += 16)
+    {
+
+        DbgPrint("%4.4xH -- %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x -- %c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c \n", \
+            PrintCount, \
+            PrintCount + 0 < putcount ? BuffTable[PrintCount + 0] & 0xff : 0, \
+            PrintCount + 1 < putcount ? BuffTable[PrintCount + 1] & 0xff : 0, \
+            PrintCount + 2 < putcount ? BuffTable[PrintCount + 2] & 0xff : 0, \
+            PrintCount + 3 < putcount ? BuffTable[PrintCount + 3] & 0xff : 0, \
+            PrintCount + 4 < putcount ? BuffTable[PrintCount + 4] & 0xff : 0, \
+            PrintCount + 5 < putcount ? BuffTable[PrintCount + 5] & 0xff : 0, \
+            PrintCount + 6 < putcount ? BuffTable[PrintCount + 6] & 0xff : 0, \
+            PrintCount + 7 < putcount ? BuffTable[PrintCount + 7] & 0xff : 0, \
+
+            PrintCount + 8 < putcount ? BuffTable[PrintCount + 8] & 0xff : 0, \
+            PrintCount + 9 < putcount ? BuffTable[PrintCount + 9] & 0xff : 0, \
+            PrintCount + 10 < putcount ? BuffTable[PrintCount + 10] & 0xff : 0, \
+            PrintCount + 11 < putcount ? BuffTable[PrintCount + 11] & 0xff : 0, \
+            PrintCount + 12 < putcount ? BuffTable[PrintCount + 12] & 0xff : 0, \
+            PrintCount + 13 < putcount ? BuffTable[PrintCount + 13] & 0xff : 0, \
+            PrintCount + 14 < putcount ? BuffTable[PrintCount + 14] & 0xff : 0, \
+            PrintCount + 15 < putcount ? BuffTable[PrintCount + 15] & 0xff : 0, \
+
+
+            PrintCount + 0 < putcount ? ((BuffTable[PrintCount + 0] >= 0x30) && (BuffTable[PrintCount + 0] <= 0x7a)) ? BuffTable[PrintCount + 0] : '.' : '.', \
+            PrintCount + 1 < putcount ? ((BuffTable[PrintCount + 1] >= 0x30) && (BuffTable[PrintCount + 1] <= 0x7a)) ? BuffTable[PrintCount + 1] : '.' : '.', \
+            PrintCount + 2 < putcount ? ((BuffTable[PrintCount + 2] >= 0x30) && (BuffTable[PrintCount + 2] <= 0x7a)) ? BuffTable[PrintCount + 2] : '.' : '.', \
+            PrintCount + 3 < putcount ? ((BuffTable[PrintCount + 3] >= 0x30) && (BuffTable[PrintCount + 3] <= 0x7a)) ? BuffTable[PrintCount + 3] : '.' : '.', \
+            PrintCount + 4 < putcount ? ((BuffTable[PrintCount + 4] >= 0x30) && (BuffTable[PrintCount + 4] <= 0x7a)) ? BuffTable[PrintCount + 4] : '.' : '.', \
+            PrintCount + 5 < putcount ? ((BuffTable[PrintCount + 5] >= 0x30) && (BuffTable[PrintCount + 5] <= 0x7a)) ? BuffTable[PrintCount + 5] : '.' : '.', \
+            PrintCount + 6 < putcount ? ((BuffTable[PrintCount + 6] >= 0x30) && (BuffTable[PrintCount + 6] <= 0x7a)) ? BuffTable[PrintCount + 6] : '.' : '.', \
+            PrintCount + 7 < putcount ? ((BuffTable[PrintCount + 7] >= 0x30) && (BuffTable[PrintCount + 7] <= 0x7a)) ? BuffTable[PrintCount + 7] : '.' : '.', \
+
+            PrintCount + 8 < putcount ? ((BuffTable[PrintCount + 8] >= 0x30) && (BuffTable[PrintCount + 8] <= 0x7a)) ? BuffTable[PrintCount + 8] : '.' : '.', \
+            PrintCount + 9 < putcount ? ((BuffTable[PrintCount + 9] >= 0x30) && (BuffTable[PrintCount + 9] <= 0x7a)) ? BuffTable[PrintCount + 9] : '.' : '.', \
+            PrintCount + 10 < putcount ? ((BuffTable[PrintCount + 10] >= 0x30) && (BuffTable[PrintCount + 10] <= 0x7a)) ? BuffTable[PrintCount + 10] : '.' : '.', \
+            PrintCount + 11 < putcount ? ((BuffTable[PrintCount + 11] >= 0x30) && (BuffTable[PrintCount + 11] <= 0x7a)) ? BuffTable[PrintCount + 11] : '.' : '.', \
+            PrintCount + 12 < putcount ? ((BuffTable[PrintCount + 12] >= 0x30) && (BuffTable[PrintCount + 12] <= 0x7a)) ? BuffTable[PrintCount + 12] : '.' : '.', \
+            PrintCount + 13 < putcount ? ((BuffTable[PrintCount + 13] >= 0x30) && (BuffTable[PrintCount + 13] <= 0x7a)) ? BuffTable[PrintCount + 13] : '.' : '.', \
+            PrintCount + 14 < putcount ? ((BuffTable[PrintCount + 14] >= 0x30) && (BuffTable[PrintCount + 14] <= 0x7a)) ? BuffTable[PrintCount + 14] : '.' : '.', \
+            PrintCount + 15 < putcount ? ((BuffTable[PrintCount + 15] >= 0x30) && (BuffTable[PrintCount + 15] <= 0x7a)) ? BuffTable[PrintCount + 15] : '.' : '.'
+        );
+
+    }
+    DbgPrint("\n<<End Of Data Dump>>\n");
+
+}
+
+
+void EnumModules_vCleanup()
+{
+    m_ulNumBytes = 0;
+    m_ulNumEntries = 0;
+    m_pulBuffer = NULL;
+
+    m_pDriverInfo = NULL;
+    m_lCurIndex = 0;
+}//EnumModules::vCleanup
+
+void EnumModules_vFree()
+{
+    if (m_pulBuffer)
+    {
+        ExFreePool(m_pulBuffer);
+    }
+    EnumModules_vCleanup();
+}//EnumModules::vFree
+
+DriverInfo* EnumModules_pGetFirst()
+{
+    EnumModules_bLoadInfo(FALSE);//make sure that the information is obtained
+
+    m_pDriverInfo = (DriverInfo*)(m_pulBuffer + 3);
+
+    //prepare for pGetNext(), which will increment these values
+    m_lCurIndex = -1;
+    m_pDriverInfo--;
+    return EnumModules_pGetNext();
+}//const EnumModules::DriverInfo * EnumModules::pGetFirst()
+
+ DriverInfo* EnumModules_pGetNext()
+{
+    if ((ULONG)(m_lCurIndex + 1) >= m_ulNumEntries)
+    {
+        return NULL;
+    }
+    m_lCurIndex++;
+    m_pDriverInfo++;
+
+    int l_iSpaceLeft =
+        m_ulNumBytes - ((ULONG)(m_pDriverInfo) - (ULONG)(m_pulBuffer));
+    if (l_iSpaceLeft < sizeof(DriverInfo))
+    {
+        DbgPrint("ERROR: m_lCurIndex (%d), l_iSpaceLeft (%d) < sizeof(DriverInfo) (%d)", m_lCurIndex, l_iSpaceLeft, sizeof(DriverInfo));
+        return NULL;
+    }
+    return m_pDriverInfo;
+}//const EnumModules::DriverInfo * EnumModules::pGetNext()
+
+ BOOLEAN EnumModules_bLoadInfo
+ (
+     BOOLEAN p_bForceReload
+ )
+ {
+     if (p_bForceReload)
+     {
+         EnumModules_vFree();
+     }
+     else
+     {
+         if (m_pulBuffer)
+         {
+             return TRUE;
+         }
+     }
+
+     //First call the Query with zero size to obtain the required 
+     //size of the buffer
+
+     ULONG l_ulTemp = 0;
+     ZwQuerySystemInformation
+     (DRIVER_INFORMATION, &l_ulTemp, 0, &m_ulNumBytes);
+
+     //ZwQuerySystemInformation will return an array of DriverInfo
+     //structures. But the reported m_ulNumBytes is less than the 
+     //size of the array, because the last structure is cut short
+     //depending on the actual size of the string.
+     //We will allocate the full size to simplify our calculations.
+
+
+     int l_iSizeHeader = 3 * sizeof(ULONG);
+     int l_iNumDrivers =
+         (m_ulNumBytes - l_iSizeHeader + sizeof(DriverInfo) - 1) /
+         sizeof(DriverInfo);
+     m_ulNumBytes =
+         l_iSizeHeader + l_iNumDrivers * sizeof(DriverInfo);
+
+     m_pulBuffer = (PULONG)ExAllocatePool(PagedPool, m_ulNumBytes);
+
+     if (m_pulBuffer == NULL)
+     {
+         DbgPrint("ERROR: ExAllocatePool(%d) failed", m_ulNumBytes);
+         return FALSE;
+     }
+
+     //Now get the array of driver information structures into 
+     //the buffer
+     ULONG l_ulBytesReturned;
+     ZwQuerySystemInformation(DRIVER_INFORMATION, m_pulBuffer,
+         m_ulNumBytes, &l_ulBytesReturned);
+
+     m_ulNumEntries = m_pulBuffer[0];
+     m_pDriverInfo = (DriverInfo*)
+         (((char*)m_pulBuffer) + l_iSizeHeader);
+     m_lCurIndex = 0;
+
+     if ((int)m_ulNumEntries != l_iNumDrivers)
+     {
+         DbgPrint("ERROR: ZwQuerySystemInformation returned %d drivers.We expected %d", m_ulNumEntries, l_iNumDrivers);
+     }
+
+     ShowAllModules((char*)m_pulBuffer);
+//     DBGP((char*)m_pulBuffer, (unsigned long)(m_ulNumBytes));
+
+     return TRUE;
+ }//bool EnumModules::bLoadInfo
+
+
+ void ShowAllModules(char* pBuf)
+ {
+     PSYSTEM_MODULE_INFORMATION_ENTRY pSysModuleInfo;
+     ULONG Modcnt = 0;
+
+     /// <summary>
+     ULONG  BuildNumber;
+     PCHAR pImageName;
+     PULONG	Adr_NT_default_mask;
+     PULONG	Adr_NT_acpi_mask;
+     PULONG	Adr_NT_amli_mask;
+     PULONG	Adr_ACPI_gdebugger;
+
+
+     BuildNumber = NtBuildNumber & 0xffff;
+     DbgPrint("NtBuildNumber:%d\n", BuildNumber);
+
+     Modcnt = *(ULONG*)pBuf;
+     pSysModuleInfo = (PSYSTEM_MODULE_INFORMATION_ENTRY)(pBuf + sizeof(UQUAD));
+     DbgPrint("\n");
+     for (ULONG i = 0; i < Modcnt; i++)
+     {
+/*
+         DbgPrint("Sec:0x%p,ImgBase:0x%p,ModBase:0x%p,Size:0x%08X,Flag:0x%08X,LoadOrdIdx:0x%04X,InitOrdIdx:0x%04X,LoadCun:0x%04X,PathLenght:0x%04X,Name:%s \n", 
+             pSysModuleInfo->Section,
+             pSysModuleInfo->MappedBase,
+             pSysModuleInfo->Base,
+             pSysModuleInfo->Size,
+             pSysModuleInfo->Flags,
+             pSysModuleInfo->LoadOrderIndex,
+             pSysModuleInfo->InitOrderIndex,
+             pSysModuleInfo->LoadCount,
+             pSysModuleInfo->PathLength,
+             pSysModuleInfo->ImageName
+         );
+*/
+
+         pImageName = &pSysModuleInfo->ImageName[(CHAR)pSysModuleInfo->PathLength];
+
+        DbgPrint("LoadCun:%d,BaseAdr:0x%p,Size:0x%08X,PathLeng:%d,Full Name:%s,  Name:%s \n",
+            pSysModuleInfo->LoadCount,
+            pSysModuleInfo->Base,
+            pSysModuleInfo->Size,
+            pSysModuleInfo->PathLength,
+            pSysModuleInfo->ImageName,
+            pImageName
+        );
+
+
+        if (0 == strcmp(pImageName, "ntoskrnl.exe"))
+        {
+            Adr_NT_default_mask = (PULONG)pSysModuleInfo->Base + (0xCF4B34 / 4);
+            Adr_NT_acpi_mask = (PULONG)pSysModuleInfo->Base + (0xCF4C58 / 4);
+            Adr_NT_amli_mask = (PULONG)pSysModuleInfo->Base + (0xCF4C64 / 4);
+            DbgPrint("pNT_Default:%p-0x%08X,pNT_ACPI:%p-0x%08X,pNT_AMLI:%p-0x%08X\n",
+                Adr_NT_default_mask, *Adr_NT_default_mask,
+                Adr_NT_acpi_mask, *Adr_NT_acpi_mask,
+                Adr_NT_amli_mask, *Adr_NT_amli_mask
+            );
+            *Adr_NT_default_mask = 0xffffffff;
+//            *Adr_NT_acpi_mask = 0xffffffff;
+            *Adr_NT_amli_mask = 0xffffffff;
+        }
+        if (0 == strcmp(pImageName, "ACPI.sys"))
+        {
+            Adr_ACPI_gdebugger = (PULONG)pSysModuleInfo->Base + (0x82800 / 4);
+            DbgPrint("pACPI_gDebugger:%p-0x%08X\n",
+                Adr_ACPI_gdebugger, *Adr_ACPI_gdebugger
+            );
+            *Adr_ACPI_gdebugger |= 0x10; // set trace on
+//            *Adr_ACPI_gdebugger &= ~0x10; // set trace off
+
+//            *Adr_ACPI_gdebugger |= 0x8; // set verbose on
+            *Adr_ACPI_gdebugger &= ~0x8; // set verbose off
+
+        }
+
+         pSysModuleInfo++;
+     }
+
+ }
